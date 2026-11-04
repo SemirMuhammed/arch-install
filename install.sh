@@ -24,6 +24,20 @@ readonly -a STAGES=(
 # which a dry run deliberately never creates.
 readonly DRY_RUN_LAST_STAGE=03-partition.sh
 
+# --no-ui must be known before lib/ui.sh chooses a mode, so look for it first.
+# The choice is exported so the stage scripts use the same mode.
+for arg in "$@"; do
+    if [[ $arg == --no-ui ]]; then
+        ARCH_INSTALL_UI=0
+    fi
+done
+ARCH_INSTALL_UI=${ARCH_INSTALL_UI:-1}
+if [[ $ARCH_INSTALL_UI != 0 && $ARCH_INSTALL_UI != 1 ]]; then
+    printf 'ERROR [64]: ARCH_INSTALL_UI must be 0 or 1\n' >&2
+    exit 64
+fi
+export ARCH_INSTALL_UI
+
 # shellcheck source=lib/ui.sh
 source "$SCRIPT_DIR/lib/ui.sh"
 
@@ -51,6 +65,8 @@ Options:
                   Stages 04-06 need a real target, so a dry run stops after 03.
   -f, --from NN   Start at stage NN (01-06) instead of the first stage.
                   Earlier stages must already have completed in this session.
+  --no-ui         Plain text output: no logo, boxes, progress bar, or colour.
+                  Prompts and menus still work. Same as ARCH_INSTALL_UI=0.
   -h, --help      Show this help and exit.
 
 Stages:
@@ -63,7 +79,9 @@ Stages:
 
 Exit codes are those of the failing stage. See README.md for the full table.
 
-Set NO_COLOR=1 to turn off colour output.
+The styled interface is on by default. Set NO_COLOR=1 to keep the styling but
+turn off colour. The opinionated defaults and their trade-offs are described in
+docs/DECISIONS.md.
 USAGE
 }
 
@@ -113,6 +131,10 @@ main() {
                 from=$2
                 shift 2
                 ;;
+            --no-ui)
+                # Already applied before the UI library loaded.
+                shift
+                ;;
             -h|--help)
                 usage
                 exit 0
@@ -149,6 +171,13 @@ main() {
         ui_box "$UI_YELLOW" 'BEFORE YOU START' \
             'Stage 03 ERASES the disk you select. Read every prompt carefully.' \
             'Stage 02 asks for the disk, your account, and the keyboard layout.'
+        ui_box "$UI_CYAN" 'OPINIONATED DEFAULTS' \
+            'Root is Btrfs with @ and @home subvolumes, compressed with zstd.' \
+            'Root is LUKS2-encrypted. The EFI partition is unencrypted by necessity.' \
+            'Boot is systemd-boot with the linux-lts kernel. No GRUB, no BIOS support.' \
+            'Swap is zram in RAM, not a disk partition. No desktop environment.' \
+            'SSH is enabled on first boot. Read docs/DECISIONS.md before you rely on it.' \
+            'Every choice and its trade-off is listed in docs/DECISIONS.md.'
     fi
 
     for stage in "${plan[@]}"; do

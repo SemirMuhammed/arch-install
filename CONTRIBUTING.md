@@ -43,6 +43,12 @@ official Arch ISO in UEFI mode.
   `ui_error_line`, `ui_box`, `ui_menu`, `ui_confirm`, `ui_input`) rather than raw `printf`.
   The chroot payload is the one exception, because it runs inside the target with no UI library.
   Keep the wording of error messages stable, since the README documents the exit codes.
+- **Opinionated defaults.** A change to any default in `docs/DECISIONS.md` (filesystem,
+  kernel, bootloader, mount options, services, accounts, and so on) needs an update to
+  that file in the same pull request. The file records the reason and the trade-off, so a
+  change without them is incomplete.
+- **Both interface modes.** Any new prompt or panel must work in styled and plain mode
+  (`ARCH_INSTALL_UI=0`). Use the `ui_*` helpers, which handle both.
 - **Live ISO dependencies.** The official ISO doesn't ship every tool. Install
   missing packages on demand with the existing helpers, not by assuming they are present.
 

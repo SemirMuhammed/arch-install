@@ -6,6 +6,14 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- ASCII logo for the installer's title block, in the styled interface.
+- `--no-ui` flag and `ARCH_INSTALL_UI=0` environment variable for plain text output.
+  The styled interface stays on by default.
+- `docs/DECISIONS.md`: every opinionated default, the reason for it, its trade-offs,
+  and whether it can be changed. The pre-install panel and README summarize it.
+
 ### Changed
 
 - Redesigned terminal output: colour, a stage progress bar, status lines, and

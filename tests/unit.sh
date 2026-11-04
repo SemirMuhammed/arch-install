@@ -525,6 +525,40 @@ test_ui_behaviour() {
     if [[ $st == 64 ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: end of input gave exit $st, expected 64" >&2; fi
 }
 
+test_ui_mode_toggle() {
+    # Plain mode: no logo and no panel borders, but the same information.
+    local plain
+    plain=$(ARCH_INSTALL_UI=0 bash -c 'source ./lib/ui.sh; ui_banner; ui_box "$UI_RED" "TITLE" "a line"' 2>&1)
+    if [[ $plain == *'ARCH INSTALL v'* && $plain == *'== TITLE =='* && $plain != *'+---'* && $plain != *'__/'* ]]; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo 'FAIL: plain mode is not plain' >&2
+    fi
+
+    # Styled mode (the default): the logo and bordered panels appear.
+    local styled
+    styled=$(bash -c 'source ./lib/ui.sh; ui_banner; ui_box "$UI_RED" "TITLE" "a line"' 2>&1)
+    if [[ $styled == *'__________/'* && $styled == *'+---'* ]]; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo 'FAIL: styled mode is missing the logo or panels' >&2
+    fi
+
+    # The entry point accepts --no-ui and produces plain output.
+    local entry
+    entry=$(./install.sh --no-ui --dry-run 2>&1 || true)
+    if [[ $entry == *'ARCH INSTALL v'* && $entry != *'+---'* ]]; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo 'FAIL: --no-ui did not produce plain output' >&2
+    fi
+
+    # An invalid mode value is rejected before anything runs.
+    local st=0
+    ARCH_INSTALL_UI=2 ./install.sh --dry-run >/dev/null 2>&1 || st=$?
+    if [[ $st == 64 ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: ARCH_INSTALL_UI=2 gave exit $st, expected 64" >&2; fi
+}
+
 test_encoding_roundtrip
 test_decode_rejects_bad_input
 test_die_exit_codes
@@ -534,6 +568,7 @@ test_timezone_validation
 test_account_validation
 test_password_hash_validation
 test_entry_point
+test_ui_mode_toggle
 test_ui_behaviour
 test_vfat_private_options
 test_swap_entry_count

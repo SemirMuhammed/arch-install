@@ -1,16 +1,28 @@
 # shellcheck shell=bash
-# Presentation layer for the installer: colour, status lines, boxes, menus, prompts.
+# Presentation layer for the installer.
+#
+# Two presentation modes share the same function names, so callers never branch:
+#   styled (default): logo, boxed panels, progress bar, and colour on a terminal.
+#   plain (ARCH_INSTALL_UI=0): the same information as simple text, with no logo,
+#                              no boxes, no progress bar, and no colour.
 #
 # All output goes to stderr, so stdout stays clean for captured values.
-# Colour is used only on an interactive terminal. NO_COLOR=1 turns it off.
-# Nothing here writes to the installer log, so the log always stays plain text.
+# Colour needs a terminal, styled mode, and NO_COLOR unset. The installer log is
+# always plain text, because nothing here writes to it.
 #
 # This file defines functions and constants only. It is sourced by lib/common.sh
 # and by install.sh.
 
 ARCH_INSTALL_VERSION='0.1.0'
 
-if [[ -t 2 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
+# ARCH_INSTALL_UI=0 selects plain mode. Any other value, or no value, selects styled mode.
+if [[ ${ARCH_INSTALL_UI:-1} == 0 ]]; then
+    UI_STYLED=0
+else
+    UI_STYLED=1
+fi
+
+if [[ $UI_STYLED == 1 && -t 2 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
     UI_RESET=$'\033[0m'
     UI_BOLD=$'\033[1m'
     UI_DIM=$'\033[2m'
@@ -30,7 +42,7 @@ else
     UI_CYAN=''
 fi
 
-# Width of the text area inside a box. A full box is UI_BOX_WIDTH + 4 columns wide.
+# Width of the text area inside a styled box. A full box is UI_BOX_WIDTH + 4 columns wide.
 UI_BOX_WIDTH=60
 
 # Results of the most recent prompt. Read these after the call returns.
@@ -61,7 +73,7 @@ ui_die_input() {
     exit 64
 }
 
-# Print one row of a box. The text is padded to the box width.
+# Print one row of a styled box. The text is padded to the box width.
 _ui_box_row() {
     local colour=$1
     local style=$2
@@ -78,19 +90,33 @@ _ui_box_border() {
     printf '  %s+%s+%s\n' "$colour" "$(_ui_repeat '-' $((UI_BOX_WIDTH + 2)))" "$UI_RESET" >&2
 }
 
-# ui_banner: the title block shown when the installer starts.
-ui_banner() {
-    local colour=$UI_CYAN
-
-    printf '\n' >&2
-    _ui_box_border "$colour"
-    _ui_box_row "$colour" "$UI_BOLD" "ARCH INSTALL  v${ARCH_INSTALL_VERSION}"
-    _ui_box_row "$colour" "$UI_DIM" "UEFI  |  LUKS2 encryption  |  Btrfs  |  systemd-boot"
-    _ui_box_border "$colour"
-    printf '\n' >&2
+# The logo. Static text, so the installer needs no font tools at runtime.
+_ui_logo() {
+    printf '%s%s' "$UI_CYAN" "$UI_BOLD" >&2
+    cat >&2 <<'LOGO'
+      ___              __       ____           __        ____
+     /   |  __________/ /_     /  _/___  _____/ /_____ _/ / /
+    / /| | / ___/ ___/ __ \    / // __ \/ ___/ __/ __ `/ / /
+   / ___ |/ /  / /__/ / / /  _/ // / / (__  ) /_/ /_/ / / /
+  /_/  |_/_/   \___/_/ /_/  /___/_/ /_/____/\__/\__,_/_/_/
+LOGO
+    printf '%s' "$UI_RESET" >&2
 }
 
-# ui_box COLOUR TITLE [LINE...]: a titled box. Long lines wrap inside the box.
+# ui_banner: the title block shown when the installer starts.
+ui_banner() {
+    if [[ $UI_STYLED == 1 ]]; then
+        printf '\n' >&2
+        _ui_logo
+        printf '  %sUEFI  |  LUKS2 encryption  |  Btrfs  |  systemd-boot  |  v%s%s\n\n' \
+            "$UI_DIM" "$ARCH_INSTALL_VERSION" "$UI_RESET" >&2
+    else
+        printf 'ARCH INSTALL v%s  (UEFI, LUKS2, Btrfs, systemd-boot)\n' "$ARCH_INSTALL_VERSION" >&2
+    fi
+}
+
+# ui_box COLOUR TITLE [LINE...]: a titled panel. Long lines wrap in styled mode.
+# In plain mode the panel is printed as a heading followed by the lines.
 ui_box() {
     local colour=$1
     local title=$2
@@ -98,6 +124,15 @@ ui_box() {
     local wrapped
 
     shift 2
+    if [[ $UI_STYLED == 0 ]]; then
+        printf '\n== %s ==\n' "$title" >&2
+        for line in "$@"; do
+            printf '  %s\n' "$line" >&2
+        done
+        printf '\n' >&2
+        return 0
+    fi
+
     printf '\n' >&2
     _ui_box_border "$colour"
     _ui_box_row "$colour" "$UI_BOLD$colour" "$title"
@@ -110,13 +145,18 @@ ui_box() {
     printf '\n' >&2
 }
 
-# ui_stage NUMBER TOTAL TITLE: a stage header with a progress bar.
+# ui_stage NUMBER TOTAL TITLE: a stage header. Styled mode adds a progress bar.
 ui_stage() {
     local number=$1
     local total=$2
     local title=$3
     local width=40
     local filled
+
+    if [[ $UI_STYLED == 0 ]]; then
+        printf '\n==> STAGE %02d/%02d: %s\n' "$number" "$total" "$title" >&2
+        return 0
+    fi
 
     filled=$(( number * width / total ))
     printf '\n  %s%sSTAGE %02d/%02d%s  %s%s%s\n' \

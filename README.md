@@ -21,6 +21,23 @@ encryption, a Btrfs root with `@` and `@home` subvolumes, systemd-boot, a
 environment when it is first needed. This touches neither the target disk nor
 `/mnt`.
 
+## Opinionated defaults
+
+This installer makes choices for you, and some are deliberate trade-offs. The short
+list:
+
+- **Btrfs root** with `@` and `@home` subvolumes, compressed with zstd, instead of ext4.
+- **LUKS2 encryption** on the root. The EFI partition is unencrypted, as UEFI requires.
+- **systemd-boot** with the **linux-lts** kernel, and no BIOS support.
+- **zram swap** in RAM, with no swap partition, so no hibernation.
+- **OpenSSH enabled on first boot** with the default config. Read the decision
+  before you connect the machine to a network.
+- **Root locked**, one user in `wheel`, and sudo asks for that user's password.
+- **No desktop environment.**
+
+Every choice, its reasons, its costs, and how to change it is in
+[docs/DECISIONS.md](docs/DECISIONS.md).
+
 ## Usage
 
 ```sh
@@ -28,8 +45,12 @@ environment when it is first needed. This touches neither the target disk nor
 ./install.sh               # run every stage in order
 ./install.sh --dry-run     # validate stages 01-03; change nothing (stops after 03)
 ./install.sh --from 04     # resume at a stage; earlier stages must already be done
+./install.sh --no-ui       # plain text output, no logo, boxes, or colour
 ./install.sh --help
 ```
+
+The styled interface is on by default. To make plain output the default for every
+run, export `ARCH_INSTALL_UI=0`.
 
 A dry run stops after stage 03 because stages 04-06 need a mounted target, which a dry run never creates.
 
@@ -50,8 +71,14 @@ exists so that stages run in order and failures are reported clearly.
 
 ## Terminal output
 
-The installer uses colour and boxed panels on an interactive terminal. Stages
-show a progress bar, and each prompt is a numbered menu or a single question.
+By default the installer opens with a logo, then shows boxed panels, a progress
+bar per stage, and colour on an interactive terminal. Each prompt is a numbered menu
+or a single question.
+
+Plain output is available if you prefer it, for logs, serial consoles, or simpler
+terminals. Use `--no-ui`, or set `ARCH_INSTALL_UI=0` for every run. Plain output
+keeps the same information, prompts, and safety checks, without the logo, panels,
+progress bar, or colour.
 
 - Menus accept a number or a name. For example, `us` and `3` both pick the
   first matching keyboard layout.
@@ -60,8 +87,8 @@ show a progress bar, and each prompt is a numbered menu or a single question.
   erased until that check passes.
 
 Colour is turned off automatically when output is not a terminal, such as a
-pipe or a log file. Set `NO_COLOR=1` to turn it off explicitly. The installer
-log at `/var/log/arch-install.log` is always plain text.
+pipe or a log file. Set `NO_COLOR=1` to keep the styling and turn off colour only.
+The installer log at `/var/log/arch-install.log` is always plain text in either mode.
 
 ## Unattended mode
 
