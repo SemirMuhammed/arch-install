@@ -1,0 +1,20 @@
+# Installer runtime data: never commit answers files, state, or logs.
+*.answers
+arch-install.answers
+state.env
+*.log
+arch-install.log
+.install.env
+*.img
+*.iso
+
+# Editor and OS files.
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Test scratch output.
+tests/_dbg.sh
