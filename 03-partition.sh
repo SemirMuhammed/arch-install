@@ -299,11 +299,11 @@ partition_confirm_target() {
     expected_name=$(basename -- "$DISK") ||
         die 64 'cannot determine target device basename; rerun 02-config'
 
-    printf 'This permanently erases %s. Type %s to continue: ' \
-        "$DISK" "$expected_name" >&2
-
-    IFS= read -r typed_name ||
-        die 64 'disk confirmation input ended; rerun and type the exact device basename'
+    ui_box "$UI_RED" 'FINAL CONFIRMATION' \
+        "This permanently erases every partition on $DISK." \
+        'No changes have been made yet. Type the device name to continue.'
+    ui_input "Type '$expected_name' to erase $DISK"
+    typed_name=$UI_VALUE
 
     [[ $typed_name == "$expected_name" ]] ||
         die 64 'disk confirmation did not match; no target-disk changes were made'

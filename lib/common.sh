@@ -5,6 +5,10 @@ set -Eeuo pipefail
 # Overridable only so the unit tests can log to a temporary file. The installer always
 # uses the default path, and the value must be an absolute path.
 readonly LOG_FILE=${ARCH_INSTALL_LOG_FILE:-/var/log/arch-install.log}
+
+# Presentation layer: colour, status lines, boxes, menus, and prompts.
+# shellcheck source=lib/ui.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/ui.sh"
 readonly STATE_FILE='/tmp/arch-install/state.env'
 readonly STATE_LOCK="${STATE_FILE}.lock"
 
@@ -61,7 +65,7 @@ warn() {
         return 50
     fi
 
-    printf 'WARNING: %s\n' "$*" >&2
+    ui_warn_line "$*"
 }
 
 _common_cleanup_state_update() {
@@ -93,7 +97,7 @@ die() {
         printf 'ERROR: logging failed; original error: %s\n' "$message" >&2
     fi
 
-    printf 'ERROR [%s]: %s\n' "$code" "$message" >&2
+    ui_error_line "$code" "$message"
     exit "$code"
 }
 
@@ -110,8 +114,7 @@ _common_err_trap() {
         printf 'ERROR: logging failed\n' >&2
     fi
 
-    printf 'ERROR [50]: command failed at line %s (status %s)\n' \
-        "$line" "$status" >&2
+    ui_error_line 50 "command failed at line $line (status $status)"
     exit 50
 }
 
@@ -125,7 +128,7 @@ _common_signal_trap() {
         printf 'ERROR: logging failed during interruption\n' >&2
     fi
 
-    printf 'ERROR [130]: interrupted by signal %s\n' "$signal" >&2
+    ui_error_line 130 "interrupted by signal $signal"
     exit 130
 }
 
@@ -341,20 +344,6 @@ retry() {
     done
 
     return "$status"
-}
-
-confirm() {
-    (( $# == 1 )) || die 64 'confirm requires exactly one prompt'
-
-    local prompt=$1
-    local answer
-
-    printf '%s [type yes]: ' "$prompt" >&2
-    if ! IFS= read -r answer; then
-        return 1
-    fi
-
-    [[ $answer == yes ]]
 }
 
 require_cmd() {
@@ -604,7 +593,6 @@ state_set_many() {
     if _common_internal_run rmdir -- "$STATE_LOCK"; then
         _COMMON_STATE_LOCK_HELD=0
     else
-        printf 'WARNING: state updated, but lock cleanup failed: %s\n' \
-            "$STATE_LOCK" >&2
+        ui_warn_line "state updated, but lock cleanup failed: $STATE_LOCK"
     fi
 }

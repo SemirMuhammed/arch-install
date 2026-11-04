@@ -21,12 +21,12 @@ jobs:
 
       - name: Syntax check
         run: |
-          for f in install.sh lib/common.sh [0-9]*.sh tests/unit.sh; do
+          for f in install.sh lib/*.sh [0-9]*.sh tests/unit.sh; do
             bash -n "$f"
           done
 
       - name: Lint
-        run: shellcheck -x -s bash install.sh lib/common.sh [0-9]*.sh tests/unit.sh
+        run: shellcheck -x -s bash install.sh lib/*.sh [0-9]*.sh tests/unit.sh
 
       - name: Unit tests
         run: bash tests/unit.sh

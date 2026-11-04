@@ -343,16 +343,17 @@ post_finalize() {
         die 50 'sync failed after target unmount; inspect storage state and rerun finalization'
 
     log '06-post finalization succeeded: target validated, cleanup completed, mounts removed, ROOT mapper closed'
-    printf '%s\n' 'Installation finalized successfully.'
-    printf '%s\n' 'Target mounts removed; encrypted root mapper closed.'
+    ui_box "$UI_GREEN" 'Installation finalized' \
+        'Target unmounted and the encrypted root is closed.' \
+        'Remove the Arch ISO, then reboot to start the new system.'
 
-    if confirm 'Reboot the system now?'; then
+    if ui_confirm 'Reboot the system now?' y; then
         log 'reboot confirmed by operator'
         run --mutating reboot ||
             die 50 'reboot command failed; system remains running, inspect the live ISO and reboot manually'
     else
         log 'reboot declined; system remains running'
-        printf '%s\n' 'Reboot declined; system remains running.'
+        ui_info 'Reboot skipped. Remove the ISO and reboot when ready.'
     fi
 }
 

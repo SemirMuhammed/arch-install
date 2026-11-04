@@ -139,14 +139,13 @@ config_prompt_country() {
     local answer
 
     while true; do
-        read -r -p 'Two-letter country code (for example US, DE, GB): ' answer ||
-            die 64 'country entry was cancelled; rerun and provide a country code'
-        answer=${answer^^}
+        ui_input 'Country code (two letters, e.g. US, DE, GB)'
+        answer=${UI_VALUE^^}
         if [[ $answer =~ ^[A-Z]{2}$ ]]; then
             CONFIG_COUNTRY=$answer
             return 0
         fi
-        warn "'$answer' is not a two-letter ISO country code; try again"
+        ui_warn_line "'$answer' is not a two-letter ISO country code; try again"
     done
 }
 
@@ -200,7 +199,7 @@ config_detect_country_timezone() {
         fi
 
         if (( CONFIG_UNATTENDED == 0 )) && [[ -n $geo_country || -n $geo_timezone ]]; then
-            if ! confirm "Use detected country '${geo_country:-unknown}' and timezone '${geo_timezone:-unknown}' (from ip-api.com)?"; then
+            if ! ui_confirm "Use detected country '${geo_country:-unknown}' and timezone '${geo_timezone:-unknown}' (ip-api.com)?" y; then
                 geo_country=''
                 geo_timezone=''
             fi
@@ -230,7 +229,7 @@ config_detect_country_timezone() {
                 die 64 'cannot inspect the live ISO timezone; verify timedatectl and configure TIMEZONE manually'
             config_validate_timezone "$iso_timezone" ||
                 die 64 'live ISO timezone is invalid; configure a valid TIMEZONE and rerun'
-            confirm "Geo-IP timezone unavailable; use live ISO timezone '$iso_timezone'?" ||
+            ui_confirm "Geo-IP unavailable; use live ISO timezone '$iso_timezone'?" y ||
                 die 64 'live ISO timezone was not confirmed; provide a valid TIMEZONE and rerun'
             CONFIG_TIMEZONE=$iso_timezone
         fi
@@ -375,7 +374,6 @@ config_disk_is_candidate() {
 
 config_select_disk() {
     local selected
-    local selected_index
     local expected_name
     local typed_name
 
@@ -393,23 +391,15 @@ config_select_disk() {
         [[ ${CONFIG_ANSWERS[CONFIRM_DISK]} == "$expected_name" ]] ||
             die 64 'CONFIRM_DISK does not exactly match the DISK basename; correct the confirmation and rerun'
     else
-        printf '%s\n' 'Available installation disks:' >&2
-        select selected in "${CONFIG_DISK_LABELS[@]}"; do
-            if [[ -n ${selected:-} && $REPLY =~ ^[1-9][0-9]*$ ]] &&
-                (( REPLY <= ${#CONFIG_DISK_PATHS[@]} )); then
-                selected_index=$((REPLY - 1))
-                selected=${CONFIG_DISK_PATHS[$selected_index]}
-                break
-            fi
-            printf '%s\n' 'Invalid selection; choose a listed disk number.' >&2
-        done
-        [[ -n ${selected:-} ]] ||
-            die 64 'disk selection ended without a choice; rerun and select an eligible disk'
+        ui_menu 1 'Available installation disks' "${CONFIG_DISK_LABELS[@]}"
+        selected=${CONFIG_DISK_PATHS[UI_CHOICE_INDEX]}
         expected_name=$(basename -- "$selected") ||
             die 64 'cannot determine selected disk basename; rerun disk selection'
-        printf 'Type %s to confirm this install target: ' "$expected_name" >&2
-        IFS= read -r typed_name ||
-            die 64 'disk confirmation input ended; rerun and confirm the exact device basename'
+        ui_box "$UI_RED" 'CONFIRM INSTALL TARGET' \
+            "Stage 03 will erase every partition on $selected." \
+            'Nothing is changed until you confirm. Type the device name exactly as shown.'
+        ui_input "Type '$expected_name' to confirm"
+        typed_name=$UI_VALUE
         [[ $typed_name == "$expected_name" ]] ||
             die 64 'disk confirmation did not match; no disk was modified, rerun and type the exact basename'
     fi
@@ -446,25 +436,21 @@ config_collect_account() {
         hostname_input=${CONFIG_ANSWERS[HOSTNAME]}
     else
         while true; do
-            printf 'Username: ' >&2
-            IFS= read -r username_input ||
-                die 64 'username input ended; rerun and enter a valid username'
-            username_input=${username_input,,}
+            ui_input 'Username (lowercase, 1-32 characters)'
+            username_input=${UI_VALUE,,}
             if [[ $username_input =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]; then
                 break
             fi
-            printf '%s\n' 'Invalid username; use 1-32 lowercase Linux account characters.' >&2
+            ui_warn_line 'Invalid username: start with a letter or underscore; use lowercase letters, digits, _ or -.'
         done
 
         while true; do
-            printf 'Hostname: ' >&2
-            IFS= read -r hostname_input ||
-                die 64 'hostname input ended; rerun and enter a valid hostname'
-            hostname_input=${hostname_input,,}
+            ui_input 'Hostname'
+            hostname_input=${UI_VALUE,,}
             if [[ $hostname_input =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
                 break
             fi
-            printf '%s\n' 'Invalid hostname; use 1-63 letters, digits, or interior hyphens.' >&2
+            ui_warn_line 'Invalid hostname: use 1-63 letters, digits, or hyphens between them.'
         done
     fi
 
@@ -488,20 +474,15 @@ config_collect_password() {
         while true; do
             password_one=''
             password_two=''
-            printf 'Password: ' >&2
-            IFS= read -r -s password_one ||
-                die 64 'password input ended; rerun and enter the password again'
-            printf '\nConfirm password: ' >&2
-            IFS= read -r -s password_two || {
-                unset password_one password_two
-                die 64 'password confirmation input ended; rerun and enter the password again'
-            }
-            printf '\n' >&2
+            ui_secret 'Password'
+            password_one=$UI_VALUE
+            ui_secret 'Confirm password'
+            password_two=$UI_VALUE
             if [[ -n $password_one && $password_one == "$password_two" ]]; then
                 break
             fi
             unset password_one password_two
-            printf '%s\n' 'Passwords were empty or did not match; try again.' >&2
+            ui_warn_line 'Passwords were empty or did not match; try again.'
         done
 
         if ! password_hash=$(printf '%s\n' "$password_one" | openssl passwd -6 -stdin); then
@@ -530,18 +511,11 @@ config_collect_keyboard_locale() {
         keymap_input=${CONFIG_ANSWERS[KEYMAP]}
         locale_input=${CONFIG_ANSWERS[LOCALE]}
     else
-        printf '%s\n' 'Select keyboard layout:' >&2
-        select keymap_input in "${CONFIG_KEYMAPS[@]}"; do
-            [[ -n ${keymap_input:-} ]] && break
-            printf '%s\n' 'Invalid keymap selection; choose a listed number.' >&2
-        done
-        [[ -n ${keymap_input:-} ]] ||
-            die 64 'keyboard selection ended without a choice; rerun and select a supported keymap'
+        ui_menu 4 'Keyboard layout' "${CONFIG_KEYMAPS[@]}"
+        keymap_input=$UI_CHOICE
         suggested_locale=${CONFIG_KEYMAP_LOCALES["$keymap_input"]:-en_US.UTF-8}
-        printf 'Locale [%s]: ' "$suggested_locale" >&2
-        IFS= read -r locale_input ||
-            die 64 'locale input ended; rerun and enter a valid locale'
-        locale_input=${locale_input:-$suggested_locale}
+        ui_input 'Locale' "$suggested_locale"
+        locale_input=$UI_VALUE
     fi
 
     [[ " ${CONFIG_KEYMAPS[*]} " == *" $keymap_input "* ]] ||

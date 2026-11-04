@@ -15,8 +15,8 @@ easiest to review.
 Every change must pass the same checks that CI runs:
 
 ```sh
-for f in install.sh lib/common.sh [0-9]*.sh tests/unit.sh; do bash -n "$f"; done
-shellcheck -x -s bash install.sh lib/common.sh [0-9]*.sh tests/unit.sh
+for f in install.sh lib/*.sh [0-9]*.sh tests/unit.sh; do bash -n "$f"; done
+shellcheck -x -s bash install.sh lib/*.sh [0-9]*.sh tests/unit.sh
 bash tests/unit.sh
 ```
 
@@ -39,6 +39,10 @@ official Arch ISO in UEFI mode.
   blanket disables. If a disable is genuinely needed, put it on the line it applies to
   and explain why.
 - **Tests.** Add a unit test for any new pure logic or bug fix.
+- **User-facing output.** Use the helpers in `lib/ui.sh` (`ui_ok`, `ui_warn_line`,
+  `ui_error_line`, `ui_box`, `ui_menu`, `ui_confirm`, `ui_input`) rather than raw `printf`.
+  The chroot payload is the one exception, because it runs inside the target with no UI library.
+  Keep the wording of error messages stable, since the README documents the exit codes.
 - **Live ISO dependencies.** The official ISO doesn't ship every tool. Install
   missing packages on demand with the existing helpers, not by assuming they are present.
 

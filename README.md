@@ -48,6 +48,21 @@ names the failing stage, and exits with that stage's exit code.
 Each stage can also be run on its own (`bash 03-partition.sh`). The entry point
 exists so that stages run in order and failures are reported clearly.
 
+## Terminal output
+
+The installer uses colour and boxed panels on an interactive terminal. Stages
+show a progress bar, and each prompt is a numbered menu or a single question.
+
+- Menus accept a number or a name. For example, `us` and `3` both pick the
+  first matching keyboard layout.
+- Yes/no questions take a default. Press Enter to accept it, or type `y` or `n`.
+- Destructive steps still require typing the exact device name, and nothing is
+  erased until that check passes.
+
+Colour is turned off automatically when output is not a terminal, such as a
+pipe or a log file. Set `NO_COLOR=1` to turn it off explicitly. The installer
+log at `/var/log/arch-install.log` is always plain text.
+
 ## Unattended mode
 
 Create `/root/arch-install.answers` as a root-owned file with mode `600`:

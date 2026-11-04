@@ -6,6 +6,15 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Redesigned terminal output: colour, a stage progress bar, status lines, and
+  titled panels for warnings, confirmations, success, and failure.
+- Keyboard and disk selection are numbered menus that accept a number or a name.
+- Yes/no questions take a default and accept `y`, `yes`, `n`, or `no`.
+- Colour turns off automatically outside a terminal, and `NO_COLOR=1` disables it.
+- The installer log and the target-side payload output remain plain text.
+
 ## [0.1.0] - 2026-11-04
 
 First public release.

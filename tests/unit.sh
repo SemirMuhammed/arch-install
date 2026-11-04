@@ -478,6 +478,53 @@ substring is not a match|rw,xumask=0077|public
 CASES
 }
 
+test_ui_behaviour() {
+    # Output piped to a file is not a terminal, so no colour codes may appear.
+    local out
+    out=$(bash -c 'source ./lib/ui.sh; ui_banner; ui_ok done; ui_error_line 20 boom' 2>&1)
+    if [[ $out == *$'\033'* ]]; then
+        FAIL=$((FAIL + 1)); echo 'FAIL: colour codes appeared in non-terminal output' >&2
+    else
+        PASS=$((PASS + 1))
+    fi
+
+    # NO_COLOR must also be respected on a terminal; checked here via the variable.
+    local colour
+    colour=$(NO_COLOR=1 bash -c 'source ./lib/ui.sh; printf "%s" "[$UI_RED]"')
+    if [[ $colour == '[]' ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: NO_COLOR left colour set: $colour" >&2; fi
+
+    # ui_confirm: empty input takes the default, explicit answers win, invalid input is retried.
+    ui_yes() { printf '%s\n' "$1" | bash -c "source ./lib/ui.sh; ui_confirm 'q' $2 >/dev/null 2>&1"; }
+    if ui_yes '' y; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo 'FAIL: empty answer ignored default y' >&2; fi
+    if ui_yes '' n; then FAIL=$((FAIL + 1)); echo 'FAIL: empty answer ignored default n' >&2; else PASS=$((PASS + 1)); fi
+    if ui_yes 'yes' n; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo 'FAIL: explicit yes rejected' >&2; fi
+    if ui_yes 'NO' y; then FAIL=$((FAIL + 1)); echo 'FAIL: explicit NO accepted' >&2; else PASS=$((PASS + 1)); fi
+    if printf 'maybe\ny\n' | bash -c "source ./lib/ui.sh; ui_confirm q n >/dev/null 2>&1"; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo 'FAIL: invalid answer was not retried' >&2
+    fi
+
+    # ui_menu: a number selects by position, a name selects by value, invalid input is retried.
+    local choice
+    choice=$(printf '2\n' | bash -c "source ./lib/ui.sh; ui_menu 1 T alpha beta gamma >/dev/null 2>&1; printf '%s|%s' \"\$UI_CHOICE\" \"\$UI_CHOICE_INDEX\"")
+    if [[ $choice == 'beta|1' ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: menu number gave '$choice'" >&2; fi
+    choice=$(printf 'gamma\n' | bash -c "source ./lib/ui.sh; ui_menu 1 T alpha beta gamma >/dev/null 2>&1; printf '%s' \"\$UI_CHOICE\"")
+    if [[ $choice == gamma ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: menu name gave '$choice'" >&2; fi
+    choice=$(printf '9\n0\n1\n' | bash -c "source ./lib/ui.sh; ui_menu 1 T alpha beta >/dev/null 2>&1; printf '%s' \"\$UI_CHOICE\"")
+    if [[ $choice == alpha ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: out-of-range input was not retried (got '$choice')" >&2; fi
+
+    # ui_input: an empty answer takes the default.
+    local value
+    value=$(printf '\n' | bash -c "source ./lib/ui.sh; ui_input L fallback >/dev/null 2>&1; printf '%s' \"\$UI_VALUE\"")
+    if [[ $value == fallback ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: ui_input default gave '$value'" >&2; fi
+
+    # Input that ends before an answer must fail with exit 64, never hang or continue.
+    local st=0
+    printf '' | bash -c "source ./lib/ui.sh; ui_confirm q y" >/dev/null 2>&1 || st=$?
+    if [[ $st == 64 ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: end of input gave exit $st, expected 64" >&2; fi
+}
+
 test_encoding_roundtrip
 test_decode_rejects_bad_input
 test_die_exit_codes
@@ -487,6 +534,7 @@ test_timezone_validation
 test_account_validation
 test_password_hash_validation
 test_entry_point
+test_ui_behaviour
 test_vfat_private_options
 test_swap_entry_count
 test_hooks_normalization
