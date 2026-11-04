@@ -6,6 +6,11 @@ set -Eeuo pipefail
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd -- "$ROOT_DIR"
 
+# Log to a temporary file so the suite never needs root or write access to /var/log.
+ARCH_INSTALL_LOG_FILE=$(mktemp)
+export ARCH_INSTALL_LOG_FILE
+trap 'rm -f -- "$ARCH_INSTALL_LOG_FILE"' EXIT
+
 # Modules define functions only when sourced, so this is safe.
 # shellcheck source=lib/common.sh
 source ./lib/common.sh

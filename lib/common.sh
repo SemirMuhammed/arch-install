@@ -2,7 +2,9 @@
 set -Eeuo pipefail
 
 # Shared library for the Arch installer. Sourcing defines functions only.
-readonly LOG_FILE='/var/log/arch-install.log'
+# Overridable only so the unit tests can log to a temporary file. The installer always
+# uses the default path, and the value must be an absolute path.
+readonly LOG_FILE=${ARCH_INSTALL_LOG_FILE:-/var/log/arch-install.log}
 readonly STATE_FILE='/tmp/arch-install/state.env'
 readonly STATE_LOCK="${STATE_FILE}.lock"
 

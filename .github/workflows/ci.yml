@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck jq openssl tzdata
+
+      - name: Syntax check
+        run: |
+          for f in install.sh lib/common.sh [0-9]*.sh tests/unit.sh; do
+            bash -n "$f"
+          done
+
+      - name: Lint
+        run: shellcheck -x -s bash install.sh lib/common.sh [0-9]*.sh tests/unit.sh
+
+      - name: Unit tests
+        run: bash tests/unit.sh
