@@ -13,6 +13,16 @@ easiest to review.
 
 ## Running the checks
 
+The quickest way is the local check, which runs the same steps as CI:
+
+```sh
+tests/check.sh
+git config core.hooksPath .githooks   # once: run the secret scan before each commit
+```
+
+The step-by-step commands below do the same work by hand.
+
+
 Every change must pass the same checks that CI runs:
 
 ```sh

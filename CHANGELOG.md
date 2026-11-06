@@ -8,6 +8,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `tests/check.sh`, a local check that runs the same steps as CI, plus a secret scan.
+  `.githooks/pre-commit` runs its fast staged-file scan before each commit.
 - `docs/ROADMAP.md` with the verified plan, and ready-to-paste issue texts in `docs/issues/`.
 - Per-stage timing: the duration after each stage, a summary panel at the end, and
   matching lines in the installer log. It never stops an install if the log cannot be

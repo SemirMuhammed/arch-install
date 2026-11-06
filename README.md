@@ -195,6 +195,22 @@ system at `/var/log/arch-install.log` during stage 06.
 
 ## Development
 
+Run the same checks as CI before you commit:
+
+```sh
+tests/check.sh
+```
+
+Install the pre-commit hook once, so the secret scan runs on every commit:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The hook scans only the staged files, so it stays fast. It blocks a commit that
+contains a password hash or an answers value. The full check also runs the syntax
+checks, shellcheck, and the unit tests.
+
 ```sh
 bash tests/unit.sh                      # unit tests: pure helpers and entry point
 shellcheck -x -s bash install.sh lib/*.sh [0-9]*.sh tests/unit.sh
