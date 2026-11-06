@@ -35,6 +35,7 @@ Every item must:
 | 6 | Scrub timer and optional sysctl file | none | Timer is active after install; sysctl values are set after reboot | |
 | 7 | Boot menu timeout 0 | 4 | No menu by default; holding a key shows it | |
 | 8 | Recovery guide | 2, 4 | A deliberately broken VM is recovered using only the guide | |
+| 9 | Secure, robust, compatible one-liner bootstrap | signed or checksummed releases | A tampered archive is rejected before extraction; no `curl \| bash` anywhere in the docs | |
 
 ## Later
 
