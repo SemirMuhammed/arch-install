@@ -210,6 +210,11 @@ UEFI virtual machine booted from the Arch ISO. That is planned work.
 - End-to-end install: **validated in a UEFI virtual machine** (QEMU/KVM, virtio disk, official Arch ISO). The installed system booted through systemd-boot, unlocked LUKS, accepted the configured user, locked the root account, and mounted `/boot` with private permissions.
 - Physical hardware: **not yet tested.**
 
+## Roadmap
+
+Planned work, the ideas I measured and decided against, and the defaults I recommend are
+in [docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## License
 
 Copyright (C) 2026 semirmuhammed

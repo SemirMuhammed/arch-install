@@ -8,6 +8,7 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/ROADMAP.md` with the verified plan, and ready-to-paste issue texts in `docs/issues/`.
 - Per-stage timing: the duration after each stage, a summary panel at the end, and
   matching lines in the installer log. It never stops an install if the log cannot be
   written.

@@ -8,6 +8,7 @@ easiest to review.
 
 - Read the [README](README.md), especially the data-loss warning.
 - For anything larger than a small fix, open an issue first to discuss the approach.
+- Pick work from [docs/ROADMAP.md](docs/ROADMAP.md). Its definition of done applies to every change.
 - Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 
 ## Running the checks
