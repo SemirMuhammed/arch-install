@@ -53,6 +53,71 @@ stage_title() {
     esac
 }
 
+# Short stage names for the timing summary. A trailing * marks stages that wait for you.
+stage_label() {
+    case $1 in
+        01) printf '%s' '01 Preflight checks' ;;
+        02) printf '%s' '02 Configuration *' ;;
+        03) printf '%s' '03 Disk preparation *' ;;
+        04) printf '%s' '04 Base system' ;;
+        05) printf '%s' '05 System configuration' ;;
+        06) printf '%s' '06 Finalization *' ;;
+        *) printf '%s' "$1 Unknown stage" ;;
+    esac
+}
+
+# Format a duration in seconds as 42s, 3m 05s, or 1h 02m 05s.
+format_duration() {
+    local total=$1
+    local hours
+    local minutes
+    local seconds
+
+    [[ $total =~ ^[0-9]+$ ]] || total=0
+    hours=$(( total / 3600 ))
+    minutes=$(( (total % 3600) / 60 ))
+    seconds=$(( total % 60 ))
+
+    if (( hours > 0 )); then
+        printf '%dh %02dm %02ds' "$hours" "$minutes" "$seconds"
+    elif (( minutes > 0 )); then
+        printf '%dm %02ds' "$minutes" "$seconds"
+    else
+        printf '%ds' "$seconds"
+    fi
+}
+
+# Append one plain-text line to the installer log, in the log's own format.
+# Timing is informational, so this never stops an install: it appends only to a log
+# that already exists (stage 01 creates it with mode 600) and ignores write errors.
+log_timing() {
+    local logfile=${ARCH_INSTALL_LOG_FILE:-/var/log/arch-install.log}
+    local timestamp
+
+    [[ -f $logfile && ! -L $logfile ]] || return 0
+    printf -v timestamp '%(%Y-%m-%dT%H:%M:%S%z)T' -1
+    { printf '[%s] [INFO] %s\n' "$timestamp" "$*" >> "$logfile"; } 2>/dev/null || true
+}
+
+# Durations of the stages that completed, in run order.
+TIMING_NAMES=()
+TIMING_SECS=()
+
+print_timing_summary() {
+    local -a lines=()
+    local total=0
+    local i
+
+    (( ${#TIMING_NAMES[@]} > 0 )) || return 0
+    for (( i = 0; i < ${#TIMING_NAMES[@]}; i++ )); do
+        total=$(( total + TIMING_SECS[i] ))
+        lines+=("$(printf '%-34s %s' "${TIMING_NAMES[i]}" "$(format_duration "${TIMING_SECS[i]}")")")
+    done
+    lines+=("$(printf '%-34s %s' 'Total' "$(format_duration "$total")")")
+    lines+=('* includes time you spend answering prompts')
+    ui_box "$UI_CYAN" 'TIMING' "${lines[@]}"
+}
+
 usage() {
     cat <<'USAGE'
 Usage: install.sh [--dry-run] [--from NN]
@@ -119,6 +184,8 @@ main() {
     local number
     local total=${#STAGES[@]}
     local status
+    local start
+    local elapsed
 
     while (( $# > 0 )); do
         case $1 in
@@ -185,19 +252,29 @@ main() {
 
         ui_stage "$((10#$number))" "$total" "$(stage_title "$number")"
 
+        start=$SECONDS
+
         # Capture the status without tripping set -e, and keep the stage's own
         # exit code so callers and logs see the real failure reason.
         if bash "$SCRIPT_DIR/$stage"; then
-            ui_ok "Stage $number complete"
+            elapsed=$(( SECONDS - start ))
+            TIMING_NAMES+=("$(stage_label "$number")")
+            TIMING_SECS+=("$elapsed")
+            ui_ok "Stage $number complete ($(format_duration "$elapsed"))"
+            log_timing "stage $number complete in $(format_duration "$elapsed")"
         else
             status=$?
-            ui_step "Stage $number exited with code $status"
+            elapsed=$(( SECONDS - start ))
+            log_timing "stage $number failed with exit code $status after $(format_duration "$elapsed")"
+            ui_step "Stage $number exited with code $status after $(format_duration "$elapsed")"
             ui_box "$UI_RED" 'INSTALLATION STOPPED' \
                 "Fix the cause shown above, then resume from this stage." \
                 "Resume with: sudo ./install.sh --from $number"
             exit "$status"
         fi
     done
+
+    print_timing_summary
 
     if [[ $dry_run == 1 ]]; then
         ui_box "$UI_GREEN" 'DRY RUN PASSED' \

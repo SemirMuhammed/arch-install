@@ -90,6 +90,11 @@ Colour is turned off automatically when output is not a terminal, such as a
 pipe or a log file. Set `NO_COLOR=1` to keep the styling and turn off colour only.
 The installer log at `/var/log/arch-install.log` is always plain text in either mode.
 
+After each stage the installer shows how long it took. At the end it prints a summary,
+and the same lines are written to the log, so you can see where an install spends its
+time. Stages marked with an asterisk (02, 03, and 06) include the time you spend
+answering prompts.
+
 ## Unattended mode
 
 Create `/root/arch-install.answers` as a root-owned file with mode `600`:

@@ -559,6 +559,72 @@ test_ui_mode_toggle() {
     if [[ $st == 64 ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: ARCH_INSTALL_UI=2 gave exit $st, expected 64" >&2; fi
 }
 
+test_timing() {
+    local pair secs want got tmp out before after st
+
+    # format_duration: seconds, minutes, hours, and a non-numeric guard.
+    for pair in '0|0s' '59|59s' '60|1m 00s' '125|2m 05s' '3599|59m 59s' '3600|1h 00m 00s' '3725|1h 02m 05s' 'abc|0s'; do
+        secs=${pair%%|*}
+        want=${pair#*|}
+        got=$(bash -c 'source ./install.sh; format_duration "$1"' _ "$secs")
+        if [[ $got == "$want" ]]; then
+            PASS=$((PASS + 1))
+        else
+            FAIL=$((FAIL + 1)); echo "FAIL: format_duration '$secs' gave '$got', expected '$want'" >&2
+        fi
+    done
+
+    tmp=$(mktemp -d)
+
+    # log_timing appends a plain line, in the log's own format, to an existing log.
+    printf '' > "$tmp/exists.log"
+    ARCH_INSTALL_LOG_FILE=$tmp/exists.log bash -c 'source ./install.sh; log_timing "stage 01 complete in 5s"'
+    if grep -Eq '^\[[0-9T:+-]+\] \[INFO\] stage 01 complete in 5s$' "$tmp/exists.log"; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo 'FAIL: log_timing did not write a well-formed line' >&2
+    fi
+
+    # It must never create a log: init creates it with mode 600, and this must not preempt that.
+    ARCH_INSTALL_LOG_FILE=$tmp/absent.log bash -c 'source ./install.sh; log_timing "x"'
+    if [[ -e $tmp/absent.log ]]; then
+        FAIL=$((FAIL + 1)); echo 'FAIL: log_timing created a log file' >&2
+    else
+        PASS=$((PASS + 1))
+    fi
+
+    # It must never follow a symlink.
+    ln -s "$tmp/exists.log" "$tmp/link.log"
+    before=$(wc -l < "$tmp/exists.log")
+    ARCH_INSTALL_LOG_FILE=$tmp/link.log bash -c 'source ./install.sh; log_timing "via link"'
+    after=$(wc -l < "$tmp/exists.log")
+    if [[ $before == "$after" ]]; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo 'FAIL: log_timing followed a symlink' >&2
+    fi
+
+    # A log that cannot be written must not make the function fail.
+    chmod 400 "$tmp/exists.log"
+    st=0
+    ARCH_INSTALL_LOG_FILE=$tmp/exists.log bash -c 'source ./install.sh; log_timing "y"' >/dev/null 2>&1 || st=$?
+    if [[ $st == 0 ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo "FAIL: unwritable log made log_timing exit $st" >&2; fi
+    chmod 600 "$tmp/exists.log"
+    rm -rf -- "$tmp"
+
+    # The summary lists each stage, a total, and the prompt footnote.
+    out=$(ARCH_INSTALL_UI=0 bash -c 'source ./install.sh; TIMING_NAMES=("01 A" "02 B *"); TIMING_SECS=(5 65); print_timing_summary' 2>&1)
+    if [[ $out == *'== TIMING =='* && $out == *'01 A'* && $out == *'1m 10s'* && $out == *'answering prompts'* ]]; then
+        PASS=$((PASS + 1))
+    else
+        FAIL=$((FAIL + 1)); echo "FAIL: timing summary was incomplete: $out" >&2
+    fi
+
+    # With no completed stages, nothing is printed.
+    out=$(ARCH_INSTALL_UI=0 bash -c 'source ./install.sh; print_timing_summary' 2>&1)
+    if [[ -z $out ]]; then PASS=$((PASS + 1)); else FAIL=$((FAIL + 1)); echo 'FAIL: empty summary printed output' >&2; fi
+}
+
 test_encoding_roundtrip
 test_decode_rejects_bad_input
 test_die_exit_codes
@@ -569,6 +635,7 @@ test_account_validation
 test_password_hash_validation
 test_entry_point
 test_ui_mode_toggle
+test_timing
 test_ui_behaviour
 test_vfat_private_options
 test_swap_entry_count

@@ -72,8 +72,8 @@ partitions:
   the LUKS2 container.
 
 **Why.** One disk keeps the partition logic simple and the destructive step easy to
-reason about. A 1 GiB EFI partition leaves room for kernels and boot entries you add later,
-which a 512 MiB partition would not.
+reason about. A fresh install uses about 48 MiB of the 1 GiB EFI partition (measured on a test VM),
+so there is ample headroom for a second kernel or unified kernel images later.
 
 **Trade-off.** Dual-boot, multi-disk, and RAID layouts are not supported. The
 installer refuses any disk that hosts the running ISO or is busy.
@@ -136,13 +136,21 @@ change here.
 **Choice.** The root partition is a LUKS2 container, created with
 `cryptsetup luksFormat --type luks2`. The installer uses the cryptsetup defaults for
 the cipher and key derivation for your installed version. It does not override
-them.
+them. For example, on a test VM with about 4 GiB of RAM this produced
+`aes-xts-plain64` with a 512-bit key, `argon2id` using about 749 MiB of memory, and a
+single keyslot. The key-derivation cost is benchmarked on the machine that formats
+the disk, so the numbers vary.
 
 The EFI partition is not encrypted. UEFI firmware must read the bootloader before
 any decryption can happen, so the EFI partition cannot be encrypted with this
-design. It holds the bootloader and the kernel's random seed, not your data. The
-random seed file is protected by mount options: the partition is mounted with
-`umask=0077` so only root can read it.
+design. It holds the bootloader, the kernel and initramfs images, the boot entries,
+and systemd-boot's random seed file, not your data. The partition is mounted with
+`umask=0077` so only root can read it. On the test VM a normal user could not even
+list `/boot`.
+
+Because the kernel and initramfs are not encrypted, someone with physical access
+could replace them. Secure Boot with signed images would close that gap. This
+installer does not set it up yet.
 
 **Why.** Full-disk encryption protects your data if the disk is lost or stolen.
 

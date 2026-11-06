@@ -8,6 +8,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Per-stage timing: the duration after each stage, a summary panel at the end, and
+  matching lines in the installer log. It never stops an install if the log cannot be
+  written.
 - ASCII logo for the installer's title block, in the styled interface.
 - `--no-ui` flag and `ARCH_INSTALL_UI=0` environment variable for plain text output.
   The styled interface stays on by default.
